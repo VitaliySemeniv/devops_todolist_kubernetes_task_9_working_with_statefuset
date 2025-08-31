@@ -1,4 +1,5 @@
+# k8s/mysql/namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: todoapp
+  name: mysql
