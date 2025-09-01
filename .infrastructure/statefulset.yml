@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: mysql
+spec:
+  serviceName: mysql            # має збігатися з headless service name
+  replicas: 3
+  selector:
+    matchLabels: { app: mysql }
+  template:
+    metadata:
+      labels: { app: mysql }
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        args: ["--default-authentication-plugin=mysql_native_password"]
+        envFrom:
+        - secretRef: { name: mysql-auth }  # з secret.yml (MYSQL_*)
+        ports:
+        - name: mysql
+          containerPort: 3306
+        volumeMounts:
+        - { name: data,     mountPath: /var/lib/mysql }
+        - { name: init-sql, mountPath: /docker-entrypoint-initdb.d }
+        readinessProbe:
+          tcpSocket: { port: 3306 }
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket: { port: 3306 }
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests: { cpu: "100m", memory: "256Mi" }
+          limits:   { cpu: "500m", memory: "512Mi" }
+      volumes:
+      - name: init-sql
+        configMap:
+          name: mysql-init-sql
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi

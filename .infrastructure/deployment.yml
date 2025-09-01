@@ -1,73 +1,33 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: todoapp
-  namespace: todoapp
+  name: todo-app
+  namespace: todo
 spec:
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
+  replicas: 2
   selector:
-    matchLabels:
-      app: todoapp
+    matchLabels: { app: todo }
   template:
     metadata:
-      labels:
-        app: todoapp
+      labels: { app: todo }
     spec:
       containers:
-      - name: todoapp
-        image: ikulyk404/todoapp:3.0.0
-        volumeMounts:
-        - name: data
-          mountPath: /app/data
-        - name: app-secrets-volume
-          mountPath: "/app/secrets"
-          readOnly: true
-        - name: app-config-volume
-          mountPath: "/app/configs"
-          readOnly: true
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "150m"
-          limits:
-            memory: "256Mi"
-            cpu: "150m"
+      - name: todo
+        image: yourorg/todo:latest     # ⬅️ заміни на свій образ
         env:
-        - name: PYTHONUNBUFFERED
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: PYTHONUNBUFFERED
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secret
-              key: SECRET_KEY
-        ports:
-        - containerPort: 8080
-        livenessProbe:
-          httpGet:
-            path: api/health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 5
+        - { name: DB_NAME,     valueFrom: { secretKeyRef: { name: app-db, key: NAME     } } }
+        - { name: DB_USER,     valueFrom: { secretKeyRef: { name: app-db, key: USER     } } }
+        - { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: app-db, key: PASSWORD } } }
+        - { name: DB_HOST,     valueFrom: { secretKeyRef: { name: app-db, key: HOST     } } }
+        ports: [ { containerPort: 8080 } ]   # ⬅️ заміни, якщо інший порт
         readinessProbe:
-          httpGet:
-            path: api/ready
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
-      volumes:
-      - name: data
-        persistentVolumeClaim:
-          claimName: pvc-data
-      - name: app-secrets-volume
-        secret:
-          secretName: app-secret
-      - name: app-config-volume
-        configMap:
-          name: app-config
+          httpGet: { path: /health, port: 8080 }
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: { path: /health, port: 8080 }
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests: { cpu: "100m", memory: "128Mi" }
+          limits:   { cpu: "500m", memory: "256Mi" }
